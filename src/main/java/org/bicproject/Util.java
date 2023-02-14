@@ -7,7 +7,7 @@ public class Util {
 
     private static final String SEPARATOR = File.separator;
     public static final String FILE_NAME = "src"+ SEPARATOR + "main" +
-            SEPARATOR + "resources" + SEPARATOR + "lngg.txt";
+            SEPARATOR + "resources" + SEPARATOR + "lng.txt";
     public static final String regex = "^\"[0-9]*([0-9]*\";\"[0-9]*)*\"";
 
     public static boolean checkCorrectLine(String line) {
