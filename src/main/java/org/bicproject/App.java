@@ -1,68 +1,50 @@
 package org.bicproject;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 
 import static org.bicproject.Util.*;
 
-/**
- * Hello world!
- */
 public class App {
-    private static List<Line> linesList = new ArrayList<>();
-    private static Map<Integer, Integer> groupMerging = new HashMap<>();
-    private static List<List<String>> groups = new ArrayList<>();
 
     public static void main(String[] args) {
-        //long start = System.currentTimeMillis();
-        findGroups(args[0]);
-        showCountOfGroups();
-        putGroups();
-        showGroups();
-        //long end = System.currentTimeMillis();
-        //System.out.println(end - start);
-    }
+        long start = System.currentTimeMillis();
 
-    public static void showCountOfGroups() {
-        System.out.println("Count of group: " + Set.copyOf(groupMerging.values()).size());
-    }
-
-    public static void showGroups() {
-        groups.sort((list1, list2) -> list2.size() - list1.size());
-        int i = 0;
-        while (i < groups.size()) {
-            System.out.println("Group " + ++i);
-            groups.get(i - 1).forEach(System.out::println);
+        int argsCount = args.length;
+        if (argsCount != 1 && argsCount != 2) {
+            throw new IllegalArgumentException("Enter file path");
         }
-    }
 
-    public static void putGroups() {
-        groupMerging = Util.sortByValue(groupMerging);
-        int strNumber = -1;
-        int strNumberTmp;
-        List<String> group = new ArrayList<>();
-        for (Map.Entry<Integer, Integer> m: groupMerging.entrySet()) {
-            strNumberTmp = strNumber;
-            strNumber = m.getValue();
-            String str1 = linesList.get(m.getValue()).getLine();
-            String str2 = linesList.get(m.getKey()).getLine();
-            if (strNumber != strNumberTmp) {
-                if (!group.isEmpty()) {
-                    groups.add(group);
-                }
-                group = new ArrayList<>();
-                group.add(str1);
-                group.add(str2);
-            } else {
-                group.add(str2);
-            }
+        List<List<String>> groups = findGroups(args[0]);
+
+        String outFileName;
+
+        File dir = new File(OUT_DIR);
+        if (!dir.exists()) {
+            dir.mkdirs();
         }
-        groups.add(group);
+
+        if (argsCount == 2) {
+            outFileName = OUT_DIR + SEPARATOR + args[1];
+        } else {
+            outFileName = OUT_DIR + OUT_FILE_NAME;
+        }
+
+        try (FileWriter writer = new FileWriter(outFileName, false)) {
+            writeAndShowCountOfGroups(writer, groups);
+            writer.flush();
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+
+        long end = System.currentTimeMillis();
+        System.out.println();
+        System.out.println(end - start);
     }
 
-    public static void findGroups(String file_name) {
+    public static List<List<String>> findGroups(String file_name) {
+        List<Line> linesList = new ArrayList<>();
+        Map<Integer, Integer> groupMerging = new HashMap<>();
         List<Map<String, Integer>> elemsToGroupNumbers = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(file_name))) {
             String line;
@@ -70,7 +52,7 @@ public class App {
 
             while ((line = br.readLine()) != null) {
 
-                if (checkCorrectLine(line)) {
+                if (!checkCorrectLine(line)) {
                     continue;
                 }
 
@@ -113,6 +95,73 @@ public class App {
             }
         } catch (IOException e) {
             e.printStackTrace();
+        }
+        return putGroups(linesList, groupMerging);
+    }
+
+    public static List<List<String>> putGroups(List<Line> linesList, Map<Integer, Integer> groupMerging) {
+        List<List<String>> groups = new ArrayList<>();
+        groupMerging = Util.sortByValue(groupMerging);
+        int strNumber = -1;
+        int strNumberTmp;
+        List<String> group = new ArrayList<>();
+        for (Map.Entry<Integer, Integer> m: groupMerging.entrySet()) {
+            strNumberTmp = strNumber;
+            strNumber = m.getValue();
+            String str1 = linesList.get(m.getValue()).getLine();
+            String str2 = linesList.get(m.getKey()).getLine();
+            if (strNumber != strNumberTmp) {
+                if (!group.isEmpty()) {
+                    groups.add(group);
+                }
+                group = new ArrayList<>();
+                group.add(str1);
+                group.add(str2);
+            } else {
+                group.add(str2);
+            }
+        }
+        groups.add(group);
+        return groups;
+    }
+
+    public static void writeAndShowCountOfGroups(FileWriter writer, List<List<String>> groups) {
+        int countOfGroup = groups.size();
+        try {
+            if (countOfGroup == 1 && groups.get(0).isEmpty()) {
+                writer.write("Count of group: 0");
+                System.out.println("Count of group: 0");
+                return;
+            }
+            writer.write("Count of group: " + countOfGroup);
+            writer.append('\n');
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        System.out.println("Count of group: " + countOfGroup);
+        writeAndShowGroups(writer, groups);
+    }
+
+    public static void writeAndShowGroups(FileWriter writer, List<List<String>> groups) {
+        groups.sort((list1, list2) -> list2.size() - list1.size());
+        int i = 0;
+        while (i < groups.size()) {
+            try {
+                writer.write("Group " + ++i);
+                System.out.println("Group " + i);
+                writer.append('\n');
+                groups.get(i - 1).forEach(it -> {
+                    try {
+                        writer.write(it);
+                        System.out.println(it);
+                        writer.append('\n');
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 }
