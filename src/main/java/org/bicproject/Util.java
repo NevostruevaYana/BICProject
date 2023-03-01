@@ -12,7 +12,7 @@ public class Util {
             SEPARATOR + "resources" + SEPARATOR + "lng-big.csv";
     public static final String OUT_DIR = "src"+ SEPARATOR + "output";
     public static final String OUT_FILE_NAME = SEPARATOR + "result.txt";
-    public static final String regex = "^\"[0-9]*([0-9]*\";\"[0-9]*)*\"";
+    public static final String regex = "\"[^\"]*([^\"]*\";\"[^\"]*)*\"";
 
     public static boolean checkCorrectLine(String line) {
         return line.matches(regex);

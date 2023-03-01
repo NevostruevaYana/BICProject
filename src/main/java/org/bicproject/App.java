@@ -1,6 +1,7 @@
 package org.bicproject;
 
 import java.io.*;
+import java.nio.BufferOverflowException;
 import java.util.*;
 
 import static org.bicproject.Util.*;
@@ -16,6 +17,9 @@ public class App {
         }
 
         List<List<String>> groups = findGroups(args[0]);
+
+        if (groups.isEmpty())
+            return;
 
         String outFileName;
 
@@ -34,7 +38,8 @@ public class App {
             writeAndShowCountOfGroups(writer, groups);
             writer.flush();
         } catch (IOException e) {
-            System.out.println(e.getMessage());
+            System.out.println("Something went wrong when writing the result to the file " + outFileName);
+            return;
         }
 
         long end = System.currentTimeMillis();
@@ -94,7 +99,8 @@ public class App {
                 linesCounter++;
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("Something went wrong when reading lines in the input file " + file_name);
+            return List.of();
         }
         return putGroups(linesList, groupMerging);
     }
@@ -118,7 +124,9 @@ public class App {
                 group.add(str1);
                 group.add(str2);
             } else {
-                group.add(str2);
+                if (!group.contains(str2)) {
+                    group.add(str2);
+                }
             }
         }
         groups.add(group);
@@ -136,7 +144,7 @@ public class App {
             writer.write("Count of group: " + countOfGroup);
             writer.append('\n');
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            System.out.println("Something went wrong when writing the result to the output file");
         }
         System.out.println("Count of group: " + countOfGroup);
         writeAndShowGroups(writer, groups);
@@ -156,11 +164,11 @@ public class App {
                         System.out.println(it);
                         writer.append('\n');
                     } catch (IOException e) {
-                        throw new RuntimeException(e);
+                        System.out.println("Something went wrong when writing the result to the output file");
                     }
                 });
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                System.out.println("Something went wrong when writing the result to the output file");
             }
         }
     }
