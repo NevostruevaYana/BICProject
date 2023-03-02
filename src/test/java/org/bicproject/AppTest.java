@@ -17,16 +17,16 @@ public class AppTest {
 
     @Test
     void findEmptyGroupsTest() {
-        assertEquals(findGroups("src/theSameLines/resources/empty"), List.of(List.of()));
-        assertEquals(findGroups("src/theSameLines/resources/example"),
+        assertEquals(findGroups("src/test/resources/empty"), List.of(List.of()));
+        assertEquals(findGroups("src/test/resources/example"),
                 List.of(List.of("\"111\";\"123\";\"222\"",
                                 "\"200\";\"123\";\"100\"",
                                 "\"300\";\"\";\"100\"")));
-        assertEquals(findGroups("src/theSameLines/resources/lineWithError"), List.of(List.of()));
-        assertEquals(findGroups("src/theSameLines/resources/lineWithErrorAndGroup"),
+        assertEquals(findGroups("src/test/resources/lineWithError"), List.of(List.of()));
+        assertEquals(findGroups("src/test/resources/lineWithErrorAndGroup"),
                 List.of(List.of("\"111\";\"123\";\"222\"",
                                     "\"111\";\"\";\"100\"")));
-        assertEquals(findGroups("src/theSameLines/resources/theSameLines"),
+        assertEquals(findGroups("src/test/resources/theSameLines"),
                 List.of(List.of("\"111\";\"123\";\"222\"",
                         "\"200\";\"123\";\"100\"",
                         "\"300\";\"\";\"100\"")));
@@ -34,21 +34,16 @@ public class AppTest {
 
     @Test
     void mainTest() throws IOException {
-        main(new String[]{"src/theSameLines/resources/empty", "empty"});
-        File expected = new File("src/theSameLines/resources/expectedEmpty");
+        main(new String[]{"src/test/resources/empty", "empty"});
+        File expected = new File("src/test/resources/expectedEmpty");
         File output = new File(OUT_DIR + SEPARATOR + "empty");
         assertTrue(FileUtils.contentEquals(expected, output));
 
-        main(new String[]{"src/theSameLines/resources/example", "example"});
-        expected = new File("src/theSameLines/resources/expectedExample");
+        main(new String[]{"src/test/resources/example", "example"});
+        expected = new File("src/test/resources/expectedExample");
         output = new File(OUT_DIR + SEPARATOR + "example");
         System.out.println(expected.getAbsolutePath());
         System.out.println(output.getAbsolutePath());
         assertTrue(FileUtils.contentEquals(expected, output));
-    }
-
-    @Test
-    void test() {
-        main(new String[]{BIG_FILE_NAME, "big.txt"});
     }
 }
