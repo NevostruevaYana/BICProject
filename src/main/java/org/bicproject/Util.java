@@ -12,20 +12,15 @@ public class Util {
             SEPARATOR + "resources" + SEPARATOR + "lng-big.csv";
     public static final String OUT_DIR = "src"+ SEPARATOR + "output";
     public static final String OUT_FILE_NAME = SEPARATOR + "result.txt";
-    public static final String regex = "\"[^\"]*([^\"]*\";\"[^\"]*)*\"";
+    public static final String regex = "(\"[^\"]*\")|([^\"]*)";
 
-    public static boolean checkCorrectLine(String line) {
-        return line.matches(regex);
-    }
-    public static <K, V extends Comparable<? super V>> Map<K, V> sortByValue(Map<K, V> map) {
-        List<Map.Entry<K, V>> list = new ArrayList<>(map.entrySet());
-        list.sort(Map.Entry.comparingByValue());
-
-        Map<K, V> result = new LinkedHashMap<>();
-        for (Map.Entry<K, V> entry : list) {
-            result.put(entry.getKey(), entry.getValue());
+    public static boolean checkWrongElements(String[] lines) {
+        for (String line: lines) {
+            if (!line.matches(regex)) {
+                return true;
+            }
         }
-        return result;
+        return false;
     }
 
 }

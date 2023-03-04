@@ -1,7 +1,6 @@
 package org.bicproject;
 
 import java.io.*;
-import java.nio.BufferOverflowException;
 import java.util.*;
 
 import static org.bicproject.Util.*;
@@ -12,14 +11,19 @@ public class App {
         long start = System.currentTimeMillis();
 
         int argsCount = args.length;
-        if (argsCount != 1 && argsCount != 2) {
+        if (argsCount == 0) {
             throw new IllegalArgumentException("Enter file path");
         }
+        if (argsCount > 2) {
+            throw new IllegalArgumentException("Too much arguments");
+        }
 
-        List<List<String>> groups = findGroups(args[0]);
-
-        if (groups.isEmpty())
+        List<Set<String>> groups = null;
+        try {
+            groups = findGroups(args[0]);
+        } catch (IOException e) {
             return;
+        }
 
         String outFileName;
 
@@ -34,22 +38,15 @@ public class App {
             outFileName = OUT_DIR + OUT_FILE_NAME;
         }
 
-        try (FileWriter writer = new FileWriter(outFileName, false)) {
-            writeAndShowCountOfGroups(writer, groups);
-            writer.flush();
-        } catch (IOException e) {
-            System.out.println("Something went wrong when writing the result to the file " + outFileName);
-            return;
-        }
+        printAndWriteResult(groups, outFileName);
 
         long end = System.currentTimeMillis();
         System.out.println();
         System.out.println(end - start);
     }
 
-    public static List<List<String>> findGroups(String file_name) {
+    public static List<Set<String>> findGroups(String file_name) throws IOException {
         List<Line> linesList = new ArrayList<>();
-        Map<Integer, Integer> groupMerging = new HashMap<>();
         List<Map<String, Integer>> elemsToGroupNumbers = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(file_name))) {
             String line;
@@ -57,11 +54,14 @@ public class App {
 
             while ((line = br.readLine()) != null) {
 
-                if (!checkCorrectLine(line)) {
+                String[] multiElements = line.split(";", -1);
+
+                if (checkWrongElements(multiElements)) {
+                    linesCounter++;
+                    linesList.add(new Line("", false));
                     continue;
                 }
 
-                String[] multiElements = line.replace("\"", "").split(";", -1);
                 linesList.add(new Line(line));
 
                 for (int index = 0; index < multiElements.length; index++) {
@@ -81,95 +81,118 @@ public class App {
                     if (group == null) {
                         elemInGroup.put(elem, linesCounter);
                     } else {
-                        Line currentGroup = linesList.get(linesCounter);
-                        Line groupLine = linesList.get(group);
-                        if (currentGroup.getLine().equals(groupLine.getLine())) {
+                        Line currentGroupLine = linesList.get(linesCounter);
+                        Line mainGroupLine = linesList.get(group);
+                        if (line.equals(mainGroupLine.getLine())) {
+                            currentGroupLine.setInactive();
                             break;
                         }
-                        if (groupLine.isActive()) {
-                            groupMerging.put(linesCounter, group);
-                            currentGroup.setInactive();
+                        if (mainGroupLine.isActive()) {
+                            if (currentGroupLine.isActive()) {
+                                mainGroupLine.setMain();
+                                mainGroupLine.setMember(linesCounter);
+                                currentGroupLine.setInactive();
+                                currentGroupLine.setBelongGroup(group);
+                            } else {
+                                int currentGroupLineBelong = currentGroupLine.getBelongGroup();
+                                Line currentMainGroupLine = linesList.get(currentGroupLineBelong);
+                                if (mainGroupLine.isMain() && !(currentGroupLineBelong == group)) {
+                                    currentMainGroupLine.setMainFalse();
+                                    currentMainGroupLine.setInactive();
+                                    currentGroupLine.setBelongGroup(group);
+                                    currentMainGroupLine.setBelongGroup(group);
+                                    mainGroupLine.setMembers(currentMainGroupLine.getGroupMembers());
+                                    mainGroupLine.setMember(currentGroupLineBelong);
+                                    currentMainGroupLine.deleteMembers();
+                                } else {
+                                    if (!mainGroupLine.isMain()) {
+                                        mainGroupLine.setInactive();
+                                        mainGroupLine.setBelongGroup(currentGroupLineBelong);
+                                        currentMainGroupLine.setMember(group);
+                                    }
+                                }
+                            }
                         } else {
-                            groupMerging.put(linesCounter, groupMerging.get(group));
-                            currentGroup.setInactive();
+                            if (currentGroupLine.isActive()) {
+                                currentGroupLine.setInactive();
+                                int newMain = mainGroupLine.getBelongGroup();
+                                currentGroupLine.setBelongGroup(newMain);
+                                linesList.get(newMain).setMember(linesCounter);
+                            } else {
+                                int currentGroupLineBelong = currentGroupLine.getBelongGroup();
+                                int mainGroupLineBelong = mainGroupLine.getBelongGroup();
+                                Line currentMainGroupLine = linesList.get(currentGroupLineBelong);
+                                if (!(currentGroupLineBelong == mainGroupLineBelong)) {
+                                    currentMainGroupLine.setMainFalse();
+                                    currentMainGroupLine.setInactive();
+                                    currentMainGroupLine.setBelongGroup(mainGroupLineBelong);
+                                    currentGroupLine.setBelongGroup(mainGroupLineBelong);
+                                    linesList.get(mainGroupLineBelong).setMembers(currentMainGroupLine.getGroupMembers());
+                                    linesList.get(mainGroupLineBelong).setMember(currentGroupLineBelong);
+                                    currentMainGroupLine.deleteMembers();
+                                }
+                            }
                         }
                     }
-
                 }
                 linesCounter++;
             }
         } catch (IOException e) {
-            System.out.println("Something went wrong when reading lines in the input file " + file_name);
-            return List.of();
+            System.out.println(e.getMessage());
+            throw new IOException();
         }
-        return putGroups(linesList, groupMerging);
+        return getGroupsWithOrder(linesList);
     }
 
-    public static List<List<String>> putGroups(List<Line> linesList, Map<Integer, Integer> groupMerging) {
-        List<List<String>> groups = new ArrayList<>();
-        groupMerging = Util.sortByValue(groupMerging);
-        int strNumber = -1;
-        int strNumberTmp;
-        List<String> group = new ArrayList<>();
-        for (Map.Entry<Integer, Integer> m: groupMerging.entrySet()) {
-            strNumberTmp = strNumber;
-            strNumber = m.getValue();
-            String str1 = linesList.get(m.getValue()).getLine();
-            String str2 = linesList.get(m.getKey()).getLine();
-            if (strNumber != strNumberTmp) {
-                if (!group.isEmpty()) {
-                    groups.add(group);
-                }
-                group = new ArrayList<>();
-                group.add(str1);
-                group.add(str2);
-            } else {
-                if (!group.contains(str2)) {
-                    group.add(str2);
+    private static List<Set<String>> getGroupsWithOrder(List<Line> linesList) {
+
+        if (linesList.isEmpty())
+            return new ArrayList<>();
+
+        List<Set<String>> groups = new ArrayList<>();
+
+        for (Line l : linesList) {
+            Set<String> set = new HashSet<>();
+            if (l.isActive() && l.getGroupMembers().size() > 0) {
+                set.add(l.getLine());
+                for (int s : l.getGroupMembers()) {
+                    set.add(linesList.get(s).getLine());
                 }
             }
+            if (!set.isEmpty())
+                groups.add(set);
         }
-        groups.add(group);
+
+        groups.sort((o1, o2) -> o2.size() - o1.size());
+
         return groups;
     }
 
-    public static void writeAndShowCountOfGroups(FileWriter writer, List<List<String>> groups) {
-        int countOfGroup = groups.size();
-        try {
-            if (countOfGroup == 1 && groups.get(0).isEmpty()) {
-                writer.write("Count of group: 0");
-                System.out.println("Count of group: 0");
+    public static void printAndWriteResult(List<Set<String>> groups, String outFileName) {
+        int size = groups.size();
+
+        int i = 0;
+        try (FileWriter writer = new FileWriter(outFileName, false)) {
+            if (size == 0) {
+                System.out.println("Count of groups: 0");
+                writer.write("Count of groups: 0");
+                writer.flush();
                 return;
             }
-            writer.write("Count of group: " + countOfGroup);
-            writer.append('\n');
-        } catch (IOException e) {
-            System.out.println("Something went wrong when writing the result to the output file");
-        }
-        System.out.println("Count of group: " + countOfGroup);
-        writeAndShowGroups(writer, groups);
-    }
 
-    public static void writeAndShowGroups(FileWriter writer, List<List<String>> groups) {
-        groups.sort((list1, list2) -> list2.size() - list1.size());
-        int i = 0;
-        while (i < groups.size()) {
-            try {
-                writer.write("Group " + ++i);
-                System.out.println("Group " + i);
-                writer.append('\n');
-                groups.get(i - 1).forEach(it -> {
-                    try {
-                        writer.write(it);
-                        System.out.println(it);
-                        writer.append('\n');
-                    } catch (IOException e) {
-                        System.out.println("Something went wrong when writing the result to the output file");
-                    }
-                });
-            } catch (IOException e) {
-                System.out.println("Something went wrong when writing the result to the output file");
+            System.out.println("Count of groups: " + size + "\n");
+            writer.write("Count of groups: " + size + "\n");
+            for (Set<String> s : groups) {
+                System.out.println("Group " + ++i);
+                writer.write("\nGroup " + i + "\n\n");
+                for (String str : s) {
+                    System.out.println(str);
+                    writer.write(str + "\n");
+                }
             }
+            writer.flush();
+        } catch (IOException e) {
+            System.out.println("Something went wrong when writing the result to the file " + outFileName);
         }
     }
 }
